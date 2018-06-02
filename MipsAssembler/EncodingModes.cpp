@@ -52,6 +52,18 @@ void Res::EncodeEnv::showListing()
 		}
 	}
 
+	for (auto it : relocations)
+	{
+		Encode_t init
+			= ((sectionElements[it.objId].bytes[0] << 24) & 0xFF)
+			| ((sectionElements[it.objId].bytes[1] << 16) & 0xFF)
+			| ((sectionElements[it.objId].bytes[2] << 8) & 0xFF)
+			| ((sectionElements[it.objId].bytes[3]) & 0xFF)
+			;
+		sectionElements[it.objId].bytes.clear();
+		sectionElements[it.objId].insert32(it.relocate(this, init));
+	}
+
 	for (auto itElem : sectionElements)
 	{
 		if (itElem.displayMode == SectionElem::DisplayMode::EStandard)
@@ -296,10 +308,10 @@ void Res::EncodeEnv::loadBaseInstructions()
 
 	/// sizes:			|6 |5  |5  |10 |6
 	/// mult rs, rt		|0 |rs |rt |0  |0x18
-	addInstruction_R("mult", 0x18	, 1, 1, 0, 0);
-	addInstruction_R("multu", 0x19	, 1, 1, 0, 0);
-	addInstruction_R("div", 0x1a	, 1, 1, 0, 0);
-	addInstruction_R("divu", 0x1b	, 1, 1, 0, 0);
+	addInstruction_R("mult", 0x18	, 1, 2, 0, 0);
+	addInstruction_R("multu", 0x19	, 1, 2, 0, 0);
+	addInstruction_R("div", 0x1a	, 1, 2, 0, 0);
+	addInstruction_R("divu", 0x1b	, 1, 2, 0, 0);
 
 
 	addInstruction_R("add", 0x20);
@@ -314,6 +326,17 @@ void Res::EncodeEnv::loadBaseInstructions()
 
 	addInstruction_R("slt", 0x2a);
 	addInstruction_R("sltu", 0x2b);
+
+
+	/////////////////////// jump & condition
+
+	addInstruction_I("beq", 0x4, 1, 2);
+	addInstruction_I("bne", 0x5, 1, 2);
+	addInstruction_J("j", 0x2);
+	addInstruction_J("j", 0x2);
+	addInstruction_J("jal", 0x2);
+	addInstruction_J("jr", 0x2);
+
 }
 
 void Res::EncodeEnv::loadDirectives()
@@ -361,15 +384,54 @@ void Res::EncodeEnv::loadDirectives()
 		SectionElem elem;
 		elem.verbose = ".word\t";
 
-		for (int i = 1; i < tokens.size() - 1; ++i)
-			elem.verbose += tokens[i] + ", ";
-		elem.verbose += tokens[tokens.size() - 1];
+		//for (int i = 1; i < tokens.size() - 1; ++i)
+		//	elem.verbose += tokens[i] + ", ";
+		//elem.verbose += tokens[tokens.size() - 1];
 
 		for (int i = 1; i < tokens.size(); ++i)
 		{
-			int16_t t = env->encodeConstant(tokens[i]);
-			elem.insert32(t);
+			int16_t t;
+
+			if (tokens[i] == "%lo")
+			{
+				elem.verbose += tokens[i] + " ( " + tokens[i + 1] + " ), ";
+				RelocationElem rel;
+				rel.objId = env->sectionElements.size();
+				rel.tagId = tokens[i + 1]; ++i;
+				rel.type = RelocationElem::ELo;
+				env->addRelocation(rel);
+				elem.insert32(0);
+			}
+			else if (tokens[i] == "%hi")
+			{
+				elem.verbose += tokens[i] + " (" + tokens[i + 1] + "), ";
+				RelocationElem rel;
+				rel.objId = env->sectionElements.size();
+				rel.tagId = tokens[i + 1]; ++i;
+				rel.type = RelocationElem::EHi;
+				env->addRelocation(rel);
+				elem.insert32(0);
+			}
+			else if (isdigit(tokens[i][0]) || (tokens[i][0] == '-'))
+			{
+				t = env->encodeConstant(tokens[i]);
+				elem.insert32(t);
+				elem.verbose += tokens[i] + ", ";
+			}
+			else
+			{
+				elem.verbose += tokens[i] + ", ";
+				RelocationElem rel;
+				rel.objId = env->sectionElements.size();
+				rel.tagId = tokens[i];
+				rel.type = RelocationElem::ERel;
+				env->addRelocation(rel);
+				elem.insert32(0);
+			}
+
+
 		}
+		elem.verbose.resize(elem.verbose.size() - 2);
 
 		env->addSectionElem(elem);
 	});
@@ -474,12 +536,18 @@ Res::Encode_t Res::EncodeEnv::encodeI(Encode_t opCode, const std::vector<Token_t
 		if (tok == "%lo")
 		{
 			RelocationElem rel;
-			//addRelocation();
-			//t = env->sectionElements[ env->tags[tokens[std::max(flag1, flag2) + 2]] ].address;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[std::max(flag1, flag2) + 2];
+			rel.type = RelocationElem::ELo;
+			env->addRelocation(rel);
 		}
 		else if (tok == "%hi")
 		{
-			//t = env->sectionElements[env->tags[tokens[std::max(flag1, flag2) + 2]]].address >> 4;
+			RelocationElem rel;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[std::max(flag1, flag2) + 2];
+			rel.type = RelocationElem::EHi;
+			env->addRelocation(rel);
 		}
 		else if ( isdigit(tok[0]) || (tok[0] == '-') )
 		{
@@ -487,7 +555,11 @@ Res::Encode_t Res::EncodeEnv::encodeI(Encode_t opCode, const std::vector<Token_t
 		}
 		else
 		{
-			
+			RelocationElem rel;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[std::max(flag1, flag2) + 2];
+			rel.type = RelocationElem::ERel;
+			env->addRelocation(rel);
 		}
 
 		r |= (t & 0xFFFF);
@@ -528,33 +600,70 @@ Res::Encode_t Res::EncodeEnv::encodeR(Encode_t opCode, const std::vector<Token_t
 		t = env->findRengister(tokens[flag4]);
 		r |= (t << (6 + 5 + 5 + 5));
 	}
-	
 	return r;
 }
 
-Res::Encode_t Res::EncodeEnv::encodeJ(Encode_t opCode, const std::vector<Token_t>& tokens, EncodeEnv* env)
+Res::Encode_t Res::EncodeEnv::encodeJ(Encode_t opCode, const std::vector<Token_t>& tokens, EncodeEnv* env,
+	uint8_t flag1, uint8_t flag2, uint8_t flag3, uint8_t flag4)
 {
 	Encode_t r = (opCode << (5 + 5 + 16));
+	Encode_t t;
+
 	{
 		if (tokens[1] == "%lo")
 		{
-
+			RelocationElem rel;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[2];
+			rel.type = RelocationElem::ELo;
+			env->addRelocation(rel);
 		}
 		else if (tokens[1] == "%hi")
 		{
-
+			RelocationElem rel;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[2];
+			rel.type = RelocationElem::EHi;
+			env->addRelocation(rel);
 		}
-		else if (tokens[1][0] >= '0' && tokens[1][0] <= '9')
+		else if (isdigit(tokens[1][0]) || (tokens[1][0] == '-'))
 		{
-
+			t = env->encodeConstant(tokens[1]);
 		}
 		else
 		{
-			/// use flag1 to distinguish between relative jump and absolute jump address
+			RelocationElem rel;
+			rel.objId = env->sectionElements.size();
+			rel.tagId = tokens[2];
+			rel.type = RelocationElem::EAbs;
+			env->addRelocation(rel);
 		}
-		//std::stringstream ss( env->tags[tokens[1]] );
-		//Encode_t t; ss >> t; 
-		//r |= t;
+
+		r |= t && 0xFFFFFF;
 	}
 	return r;
+}
+
+Res::Encode_t Res::RelocationElem::relocate(EncodeEnv* env, Encode_t init)
+{
+	Address_t currentAddress = env->sectionElements[objId].address;
+
+	std::cout << init << std::endl;
+	Encode_t t;
+	switch (type)
+	{
+	case ELo:
+		t = env->sectionElements[env->tags[tagId]].address;
+		return init | (t & 0xFFFF);
+	case EHi:
+		t = env->sectionElements[env->tags[tagId]].address >> 4;
+		return init | (t & 0xFFFF);
+	case RelocationType::ERel:
+		t = env->sectionElements[env->tags[tagId]].address + currentAddress;
+		return init | (t & 0xFFFF);
+	case RelocationType::EAbs:
+		t = env->sectionElements[env->tags[tagId]].address;
+		return init | (t & 0xFFFFFF);
+	}
+	
 }

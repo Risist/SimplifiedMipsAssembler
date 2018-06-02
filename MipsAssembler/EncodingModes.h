@@ -58,12 +58,24 @@ namespace Res
 		bool sectionAddressApplied = false;
 	};
 
+	class EncodeEnv;
 
 	class RelocationElem
 	{
 	public:
-		size_t pointerId;
-		size_t relocatedObjectId;
+		size_t objId;
+		Token_t tagId;
+
+		enum RelocationType
+		{
+			ELo,
+			EHi,
+			ERel,
+			EAbs,
+			ESize
+		}type;
+
+		Encode_t relocate( EncodeEnv* env, Encode_t init);
 	};
 
 	class EncodeEnv
@@ -133,6 +145,10 @@ namespace Res
 			uint8_t flag4 = 2, uint8_t flag3 = 3, uint8_t flag2 = 1, uint8_t flag1 = 0)
 		{
 			instructions[name] = { encodeR, flag1, flag2, flag3, flag4, funct };
+		}
+		void addInstruction_J(const Token_t& name, Encode_t opcode)
+		{
+			instructions[name] = { encodeJ, 0, 0, 0, 0, opcode};
 		}
 
 		void addDirective(const Token_t& name, Directive_t func)
@@ -230,7 +246,11 @@ namespace Res
 		static Encode_t encodeR		(Encode_t opCode, const std::vector<Token_t> &tokens, EncodeEnv* env, 
 			uint8_t flag1, uint8_t flag2, uint8_t flag3, uint8_t flag4);
 
-		static Encode_t encodeJ		(Encode_t opCode, const std::vector<Token_t> &tokens, EncodeEnv* env);
+		static Encode_t encodeJ		(Encode_t opCode, const std::vector<Token_t> &tokens, EncodeEnv* env,
+			uint8_t flag1, uint8_t flag2, uint8_t flag3, uint8_t flag4);
+
+
+		friend class RelocationElem;
 	};
 }
 	
