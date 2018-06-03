@@ -101,6 +101,7 @@ namespace Res
 
 		void showListing();
 		void showSymtab();
+		void showRelatab(const Token_t& sectionName);
 
 		/////////////// Encode functions
 

@@ -32,6 +32,8 @@ void Res::EncodeEnv::showListing()
 	}
 
 	showSymtab();
+	showRelatab(".text");
+	showRelatab(".data");
 
 
 	currentSectionName = ".text";
@@ -85,12 +87,35 @@ void Res::EncodeEnv::showListing()
 
 void Res::EncodeEnv::showSymtab()
 {
-	std::cout << "symtab:\n\\\\\\\\\\\\\n";
+	std::cout << "symtab:\n";
 	for (auto itTag : tags)
 	{
 		std::cout << itTag.first << ", " << sectionElements[itTag.second].sectionName << ", " << sectionElements[itTag.second].address << "\n";
 	}
-	std::cout << "\n\\\\\\\\\\\\\\\\\\\n";
+	std::cout << "\n";
+}
+
+void Res::EncodeEnv::showRelatab(const Token_t & sectionName)
+{
+	std::cout << ".rela" << sectionName << std::endl;
+	for (auto itRel : relocations)
+	{
+		auto& itElem = sectionElements[itRel.objId];
+		if (itElem.sectionName != sectionName)
+			continue;
+
+		std::cout << itElem.address << ", ";
+		switch (itRel.type)
+		{
+			case RelocationElem::EAbs:	std::cout << "MIPS_32,	 "	; break;
+			case RelocationElem::ELo:	std::cout << "MIPS_LO16, "	; break;
+			case RelocationElem::EHi:	std::cout << "MIPS_Hi16, "	; break;
+			case RelocationElem::ERel:	std::cout << "MIPS_PC16, "	; break;
+		}
+		std::cout << itElem.sectionName << ", ";
+		std::cout << itRel.tagId << ", ";
+		std::cout << itRel.relocate(this,0)	<< std::endl;	
+	}
 }
 
 void Res::EncodeEnv::encode(const std::string & line)
@@ -647,8 +672,6 @@ Res::Encode_t Res::EncodeEnv::encodeJ(Encode_t opCode, const std::vector<Token_t
 Res::Encode_t Res::RelocationElem::relocate(EncodeEnv* env, Encode_t init)
 {
 	Address_t currentAddress = env->sectionElements[objId].address;
-
-	std::cout << init << std::endl;
 	Encode_t t;
 	switch (type)
 	{
@@ -656,7 +679,7 @@ Res::Encode_t Res::RelocationElem::relocate(EncodeEnv* env, Encode_t init)
 		t = env->sectionElements[env->tags[tagId]].address;
 		return init | (t & 0xFFFF);
 	case EHi:
-		t = env->sectionElements[env->tags[tagId]].address >> 4;
+		t = env->sectionElements[env->tags[tagId]].address >> 16;
 		return init | (t & 0xFFFF);
 	case RelocationType::ERel:
 		t = env->sectionElements[env->tags[tagId]].address + currentAddress;
