@@ -1,0 +1,25 @@
+.org 0x500
+.data
+.word 1, 2, 0x5
+T1: .byte 1, 2, 0x5
+T2: .half 1, 2, 0x5
+.word T3
+.word T5, T4 
+.text
+add $7,$8,$19
+.space 5
+mult $3, $2 #454fdsdfs sf s f45sdf ( )
+.data
+.ascii "ala ma kota\n"
+T3: .asciiz "a kot ma ale!"
+.allign 5
+T4: .ascii "lalalalla lal all"
+.byte 1
+T5: .byte 1
+.byte 1, 0x1, 0x5
+.text
+.j T5
+.beq $1, $2, %lo(T5)
+.bne $1, $2, %hi(T2)
+.jal T3
+.jr T3

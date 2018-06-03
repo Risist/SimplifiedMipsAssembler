@@ -40,11 +40,11 @@ int main()
 	while (true)
 	{
 		env.showListing();
-		cout << "currentSectionLength = " << env.getCurrentSectionLength() << std::endl;
-		cout << "input >> ";
+		//cout << "currentSectionLength = " << env.getCurrentSectionLength() << std::endl;
+		//cout << "input >> ";
 		string s;
 		getline(cin, s);
-		system("cls");
+		system("clear");
 		env.encode(s);
 	}
 

@@ -1,0 +1,31 @@
+add  	$1,$2,$3 #fsdfsddfs
+addu  	$1,$2,$3 #fsdfsddfs
+sub  	$1,$2,$3 #fsdfsddfs
+subu  	$1,$2,$3 #fsdfsddfs
+addi 	$t0, $s3, -12
+slti 	$5, $8, -0x12
+sltiu 	$5, $8, 0x85
+andi	$at, $v0, 85
+ori	$ra, $fp, 8582
+lui	$t7, 0xFFFF
+lui	$s3, -0xFFF1
+sll	$s3, $s5,0x5
+srl	$t3, $s5,0x3
+sra	$s3, $t5 , $1
+sllv	$s5, $s3, $12
+srlv	$t6, $s4, $30
+srav	$s2, $t7, $k0
+mfhi	$k1
+mflo	$v0
+mfhi	$v1
+mflo	$a0
+mult 	$a1, $a2
+multu 	$a3, $13
+div 	$t8, $zero
+divu 	$t8, $zero
+and  	$1,$2,$3   #fs dfsddf ss fs
+or  	$1,$2,$3     # fsdffsdfs  sddfs
+xor  	$1,$2,$3     # fsdffsdfs  sddfs
+nor  	$t9,$a0,$3     # fsdffsdfs  sddfs
+slt  	$11,$23,$7     # fsdffsdfs  sddfs
+sltu  	$18,$25,$29     # fsdffsdfs  sddfs

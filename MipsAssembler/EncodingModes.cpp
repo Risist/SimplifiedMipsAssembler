@@ -70,9 +70,9 @@ void Res::EncodeEnv::showListing()
 	{
 		if (itElem.displayMode == SectionElem::DisplayMode::EStandard)
 		{
-			std::cout << std::setfill('0') << std::setw(8) << std::hex << itElem.address << "\t";
+			std::cout << std::setfill('0') << std::setw(8) << std::hex << swap_endian( itElem.address) << "\t";
 			for (auto it : itElem.bytes)
-				std::cout << std::setfill('0') << std::setw(2) << std::hex << (int)it;
+				std::cout << std::setfill('0') << std::setw(2) << std::hex << swap_endian((int)it);
 			std::cout << std::setfill(' ') << "\t" << std::setw(15) << itElem.verbose << "\n";
 		}
 		else if (itElem.displayMode == SectionElem::DisplayMode::EMinimalVerbose)
@@ -107,10 +107,11 @@ void Res::EncodeEnv::showRelatab(const Token_t & sectionName)
 		std::cout << itElem.address << ", ";
 		switch (itRel.type)
 		{
-			case RelocationElem::EAbs:	std::cout << "MIPS_32,	 "	; break;
+			case RelocationElem::EAbs:	std::cout << "MIPS_26,	 "	; break;
 			case RelocationElem::ELo:	std::cout << "MIPS_LO16, "	; break;
 			case RelocationElem::EHi:	std::cout << "MIPS_Hi16, "	; break;
 			case RelocationElem::ERel:	std::cout << "MIPS_PC16, "	; break;
+			case RelocationElem::EWord:	std::cout << "MIPS_32, "	; break;
 		}
 		std::cout << itElem.sectionName << ", ";
 		std::cout << itRel.tagId << ", ";
@@ -358,7 +359,6 @@ void Res::EncodeEnv::loadBaseInstructions()
 	addInstruction_I("beq", 0x4, 1, 2);
 	addInstruction_I("bne", 0x5, 1, 2);
 	addInstruction_J("j", 0x2);
-	addInstruction_J("j", 0x2);
 	addInstruction_J("jal", 0x2);
 	addInstruction_J("jr", 0x2);
 
@@ -449,7 +449,7 @@ void Res::EncodeEnv::loadDirectives()
 				RelocationElem rel;
 				rel.objId = env->sectionElements.size();
 				rel.tagId = tokens[i];
-				rel.type = RelocationElem::ERel;
+				rel.type = RelocationElem::EWord;
 				env->addRelocation(rel);
 				elem.insert32(0);
 			}
